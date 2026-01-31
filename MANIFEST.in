@@ -1,0 +1,8 @@
+# MANIFEST.in
+
+include LICENSE
+include README.md
+include pyproject.toml
+
+recursive-include src/pynlptool *.py *.pkl
+include src/pynlptool/py.typed

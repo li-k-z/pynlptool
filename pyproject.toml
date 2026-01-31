@@ -1,0 +1,69 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pynlptool"
+version = "0.1.0"
+description = "基于隐马尔可夫模型(HMM)的中文分词和序列标注工具库"
+readme = "README.md"
+license = {text = "MIT"}
+authors = [
+    {name = "Luck_mx", email = "muxinglucky@gmail.com"}
+]
+keywords = ["chinese", "segmentation", "nlp", "hmm", "hidden-markov-model", "sequence-labeling", "tokenization"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Text Processing :: Linguistic",
+]
+requires-python = ">=3.8"
+dependencies = []
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+    "black>=23.0",
+    "isort>=5.0",
+    "mypy>=1.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/li-k-z/pynlptool"
+Repository = "https://github.com/li-k-z/pynlptool"
+Documentation = "https://github.com/li-k-z/pynlptool#readme"
+Issues = "https://github.com/li-k-z/pynlptool/issues"
+
+[project.scripts]
+pynlptool = "pynlptool.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+pynlptool = ["py.typed", "*.pkl"]
+
+[tool.black]
+line-length = 100
+target-version = ["py38", "py39", "py310", "py311", "py312"]
+
+[tool.isort]
+profile = "black"
+line_length = 100
+
+[tool.mypy]
+python_version = "3.8"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
