@@ -92,9 +92,10 @@ print(normalized)  # ['<NUM>', '<NUM>', '<NUM>', '<NUM>', '年']
 ### 模型评估
 
 ```python
-from pynlptool import evaluate, report
+from pynlptool import load_data, evaluate, report
 
 # 评估模型
+test_sentences = load_data("test.txt")
 test_sequences = [(s.observations, s.tags) for s in test_sentences]
 predictions = [model.decode(obs) for obs, _ in test_sequences]
 metrics = evaluate(test_sequences, predictions)
@@ -111,6 +112,38 @@ print(r)
 ```bash
 pynlptool "今天天气不错"
 ```
+
+更多 CLI 用法：
+
+```bash
+# 只输出分词结果
+pynlptool "今天天气不错" -o words
+
+# 只输出字符标签
+pynlptool "今天天气不错" -o tags
+
+# 指定自定义模型
+pynlptool "今天天气不错" -m my_model.pkl
+
+# 从标准输入读取
+echo 今天天气不错 | pynlptool -o both
+```
+
+参数说明：
+
+- `-o, --output-format`: `tags` / `words` / `both`（默认 `both`）
+- `-m, --model`: 指定模型文件路径（pickle）
+- `--version`: 查看版本
+
+## 边界行为说明 / Edge Cases
+
+根据当前实现与功能测试，以下行为是确定的：
+
+- `cut("")` 返回 `[]`
+- 单字符输入会返回单元素词列表
+- 数字、英文会先进行归一化后再解码，但输出仍保留原始字符
+- 中英数混合输入可直接处理（例如 `Hello世界2026`）
+- `tag(text)` 返回 `(原始字符, 标签)` 二元组列表
 
 ## 数据格式 / Data Format
 
@@ -179,6 +212,8 @@ HMM 模型类。
 ### `evaluate(sequences, predictions)`
 
 评估模型预测结果。
+
+- 返回指标包括: `accuracy`、`macro_precision`、`macro_recall`、`macro_f1`、`token_count`、`tag_count`
 
 ### `norm_char(ch)` / `norm_seq(seq)`
 
