@@ -1,224 +1,172 @@
 # pynlptool
 
+当前版本: `0.2.1`
+
 [![PyPI version](https://badge.fury.io/py/pynlptool.svg)](https://badge.fury.io/py/pynlptool)
 [![Python Version](https://img.shields.io/pypi/pyversions/pynlptool.svg)](https://pypi.org/project/pynlptool/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-基于隐马尔可夫模型（HMM）的中文分词和序列标注库。
+基于隐马尔可夫模型（HMM）的中文分词与序列标注工具库。
 
-A Hidden Markov Model (HMM) based Chinese word segmentation and sequence labeling library.
+A lightweight HMM-based library for Chinese word segmentation and sequence labeling.
 
-## 特性 / Features
+## 亮点
 
-- 纯 Python 实现，无外部依赖
-- **内置预训练模型，开箱即用**
-- 支持 BMES 标注体系
-- 支持自定义训练数据
-- 内置模型评估和超参数调优
-- 模型序列化保存与加载
+- 纯Python实现，安装简单
+- 内置BMM增强预训练模型，开箱即用
+- 支持BMES混合标注与自定义训练
+- 支持模型保存/加载与离线评估
+- 提供Python API与CLI两种使用方式
 
-## 安装 / Installation
+## 安装
 
 ```bash
 pip install pynlptool
 ```
 
-## 快速开始 / Quick Start
+## 快速开始
 
-### 使用内置模型（推荐）
+```python
+from pynlptool import cut, tag, show
+
+# 待处理文本
+text = "南京市长江大桥是长江上第一座由中国自主设计、自行建造的双层式铁路、公路两用桥梁，是新中国的标志性工程与时代精神象征。"
+
+# cut: 返回分词结果，类型为 List[str]
+print(cut(text))
+# tag: 返回逐字标注结果，类型为 List[Tuple[str, str]]
+print(tag(text))
+# show: 返回格式化后的可读文本，适合直接打印
+print(show(text))
+```
+
+## Python API 快速示例
+
+### 1) 使用内置模型（推荐）
 
 ```python
 from pynlptool import cut, load_model
 
-# 方式一：直接分词（最简单）
-words = cut("今天天气不错")
-print(words)  # ['今天', '天气', '不错']
+# 方式1：直接用便捷函数，内部会自动加载并缓存内置模型
+print(cut("南京市长江大桥"))
 
-# 方式二：加载模型后多次使用
+# 方式2：显式加载模型后重复调用，适合批量推理场景
 model = load_model()
-words1 = model.cut("今天天气不错")
-words2 = model.cut("我喜欢编程")
-
-# 获取标注序列
-tags = model.decode(list("今天天气"))
-print(list(zip(list("今天天气"), tags)))
+print(model.cut("南京市长江大桥"))
+# decode 输入为“观测序列”（这里是字符列表），输出为标签序列
+print(model.decode(list("南京市长江大桥")))
 ```
 
-### 训练模型
+### 2) 训练自定义模型
 
 ```python
-from pynlptool import train, HMM
+from pynlptool import train
 
-# 准备训练数据: 列表，每个元素为 (observations, tags) 元组
+# 训练样本格式: (观测序列, 标签序列)
+# 两个序列必须等长，且与 BMES 标注体系一致
 sequences = [
     (["今", "天", "天", "气", "不", "错"], ["B", "E", "B", "E", "B", "E"]),
     (["我", "喜", "欢", "编", "程"], ["S", "B", "E", "B", "E"]),
 ]
 
-# 训练模型
+# alpha: 拉普拉斯平滑系数，越大越平滑
+# min_freq: 观测最小词频阈值，低频项会映射到 <UNK>
 model = train(sequences, alpha=0.5, min_freq=1)
-
-# 保存模型
-model.save("my_model.pkl")
+# 保存为可复用模型文件
+model.save("your_model.pkl")
 ```
 
-### 加载模型并预测
+### 3) 训练时启用 BMM 观测增强
 
 ```python
-from pynlptool import HMM
+from pynlptool import train
 
-# 加载模型
-model = HMM.load("my_model.pkl")
-
-# 预测
-text = list("今天天气真好")
-tags = model.decode(text)
-print(list(zip(text, tags)))
+# 在不改变 HMM 结构的前提下，启用词典特征增强观测
+# use_dict_feature=True: 开启 BMM 特征注入
+# feature_joiner="|": 将“字|标签”拼接成新观测
+# bmm_max_word_len=6: BMM 最大匹配词长
+model = train(
+    sequences,
+    alpha=0.5,
+    min_freq=1,
+    use_dict_feature=True,
+    feature_joiner="|",
+    bmm_max_word_len=6,
+)
 ```
 
-### 使用数据工具
-
-```python
-from pynlptool import load_data, norm_char, norm_seq
-
-# 加载标注数据
-sentences = load_data("train.txt")
-
-# 字符归一化
-normalized = norm_seq(list("2024年"))
-print(normalized)  # ['<NUM>', '<NUM>', '<NUM>', '<NUM>', '年']
-```
-
-### 模型评估
+### 4) 评估模型
 
 ```python
 from pynlptool import load_data, evaluate, report
 
-# 评估模型
+# 读取标注测试集（每行: 字 标签；句间空行）
 test_sentences = load_data("test.txt")
+# 转为 evaluate 所需结构
 test_sequences = [(s.observations, s.tags) for s in test_sentences]
+# 逐句推理，得到预测标签序列
 predictions = [model.decode(obs) for obs, _ in test_sequences]
+
+# 输出准确率、宏平均 P/R/F1 等指标
 metrics = evaluate(test_sequences, predictions)
-
-# 生成报告
-r = report(metrics)
-print(r)
+print(report(metrics))
 ```
 
-## 命令行工具 / CLI
+## CLI
 
-安装后可以使用命令行工具进行预测：
+安装后可直接使用：
 
 ```bash
-pynlptool "今天天气不错"
+pynlptool "南京市长江大桥"
 ```
 
-更多 CLI 用法：
+如果命令不存在（常见于 Windows PATH 未包含 Scripts）：
 
 ```bash
-# 只输出分词结果
-pynlptool "今天天气不错" -o words
-
-# 只输出字符标签
-pynlptool "今天天气不错" -o tags
-
-# 指定自定义模型
-pynlptool "今天天气不错" -m my_model.pkl
-
-# 从标准输入读取
-echo 今天天气不错 | pynlptool -o both
+python -m pynlptool.cli "南京市长江大桥"
 ```
 
-参数说明：
+常用参数：
 
-- `-o, --output-format`: `tags` / `words` / `both`（默认 `both`）
-- `-m, --model`: 指定模型文件路径（pickle）
+```bash
+pynlptool "南京市长江大桥" -o words
+pynlptool "南京市长江大桥" -o tags
+pynlptool "南京市长江大桥" -m your_model.pkl
+```
+
+- `-o, --output-format`: `tags` / `words` / `both`
+- `-m, --model`: 指定模型路径
 - `--version`: 查看版本
 
-## 边界行为说明 / Edge Cases
+## 数据格式
 
-根据当前实现与功能测试，以下行为是确定的：
+训练文件采用“每行一个 字符 标签，句间空行分隔”：
 
-- `cut("")` 返回 `[]`
-- 单字符输入会返回单元素词列表
-- 数字、英文会先进行归一化后再解码，但输出仍保留原始字符
-- 中英数混合输入可直接处理（例如 `Hello世界2026`）
-- `tag(text)` 返回 `(原始字符, 标签)` 二元组列表
-
-## 数据格式 / Data Format
-
-训练数据应为空行分隔的句子，每行一个字符及其标签：
-
-```
-今 B
-天 E
-天 B
-气 E
-
-我 S
-喜 B
-欢 E
+```text
+南 B_LOC
+京 M_LOC
+市 E_LOC
+长 B_LOC
+江 E_LOC
+大 B_n
+桥 E_n
 ```
 
-## API 参考 / API Reference
+## 核心 API
 
-### `load_model()`
+- `load_model()`: 加载内置 BMM 增强预训练模型（带缓存）
+- `cut(text)`: 直接分词
+- `tag(text)`: 返回 `(字符, 标签)` 列表
+- `show(text)`: 返回可读性更好的标签文本
+- `train(...)`: 训练 HMM，支持 BMM 观测增强参数
+- `evaluate(...)`: 计算准确率与宏平均指标
 
-加载内置的预训练模型，可直接用于分词。模型会被缓存，多次调用不会重复加载。
+## 说明与边界行为
 
-### `cut(text)`
+- `cut("")` 返回空列表
+- 数字/英文会先归一化再解码，输出仍保留原字符
+- 支持中英数混合输入
 
-使用内置模型对文本进行分词的便捷函数。
-
-- `text`: 待分词的中文文本
-
-### `tag(text)`
-
-使用内置模型获取字符标注结果。
-
-- `text`: 待标注的中文文本
-- 返回: `List[Tuple[str, str]]` 字符-标签对列表
-
-### `show(text)`
-
-使用内置模型获取格式化的标注显示结果。
-
-- `text`: 待标注的中文文本
-- 返回: 格式化的字符串
-
-### `train(sequences, alpha=0.1, min_freq=3, unk_token="<UNK>", tag_penalty=-20.0)`
-
-训练 HMM 模型。
-
-- `sequences`: 训练数据，`Iterable[Tuple[List[str], List[str]]]`
-- `alpha`: 平滑参数
-- `min_freq`: 最小词频阈值
-- `unk_token`: 未知词标记
-- `tag_penalty`: 标签惩罚系数
-
-### `HMM`
-
-HMM 模型类。
-
-- `decode(observations)`: Viterbi 解码，返回标签序列
-- `cut(text)`: 对中文文本进行分词，返回词列表
-- `save(path)`: 保存模型
-- `load(path)`: 加载模型（静态方法）
-
-### `load_data(path)`
-
-加载标注数据文件。
-
-### `evaluate(sequences, predictions)`
-
-评估模型预测结果。
-
-- 返回指标包括: `accuracy`、`macro_precision`、`macro_recall`、`macro_f1`、`token_count`、`tag_count`
-
-### `norm_char(ch)` / `norm_seq(seq)`
-
-字符/序列归一化处理。
-
-## 许可证 / License
+## 许可证
 
 MIT License
