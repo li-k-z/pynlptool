@@ -7,10 +7,16 @@ from __future__ import annotations
 import argparse
 import sys
 from pathlib import Path
-from typing import Optional
 
 from pynlptool.model import HMM
 from pynlptool.data_utils import norm_seq
+
+
+def _cli_version() -> str:
+    """Return installed package version for CLI display."""
+    from pynlptool import __version__
+
+    return __version__
 
 
 def predict_sentence(model: HMM, sentence: str) -> None:
@@ -60,7 +66,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--version",
         action="version",
-        version="%(prog)s 0.1.0",
+        version=f"%(prog)s {_cli_version()}",
     )
     return parser.parse_args()
 
@@ -94,9 +100,12 @@ def main() -> None:
         except FileNotFoundError:
             # 回退到外部路径
             possible_paths = [
+                Path.cwd() / "models" / "hmm_bmm.pkl",
                 Path.cwd() / "models" / "model.pkl",
                 Path.cwd() / "model.pkl",
+                Path.cwd() / "hmm_bmm.pkl",
                 Path.home() / ".pynlptool" / "model.pkl",
+                Path.home() / ".pynlptool" / "hmm_bmm.pkl",
             ]
             model_path = None
             for p in possible_paths:

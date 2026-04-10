@@ -7,8 +7,10 @@ from __future__ import annotations
 import math
 import pickle
 from collections import Counter, defaultdict
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Dict, Iterable, List, Optional, Set, Tuple
+
+from pynlptool.data_utils import augment_observations_with_bmm, build_dictionary_from_sequences, norm_seq
 
 
 @dataclass
@@ -39,6 +41,10 @@ class HMM:
     tag_dict: Optional[Dict[str, Set[str]]] = None
     tag_penalty: float = -20.0
     log_end: Optional[Dict[str, float]] = None
+    use_dict_feature: bool = False
+    dict_lexicon: Optional[Set[str]] = None
+    feature_joiner: str = "|"
+    bmm_max_word_len: int = 6
 
     def save(self, path: str) -> None:
         """保存模型到文件。"""
@@ -68,7 +74,35 @@ class HMM:
         if not hasattr(model, "log_end") or model.log_end is None:
             uniform = math.log(1.0 / max(len(model.states), 1)) if model.states else 0.0
             model.log_end = {s: uniform for s in model.states}
+        if not hasattr(model, "use_dict_feature"):
+            model.use_dict_feature = False
+        if not hasattr(model, "dict_lexicon") or model.dict_lexicon is None:
+            model.dict_lexicon = set()
+        if not hasattr(model, "feature_joiner"):
+            model.feature_joiner = "|"
+        if not hasattr(model, "bmm_max_word_len"):
+            model.bmm_max_word_len = 6
         return model
+
+    def _is_augmented_observation(self, obs: str) -> bool:
+        if self.feature_joiner not in obs:
+            return False
+        left, _, right = obs.rpartition(self.feature_joiner)
+        return bool(left) and right in {"B", "M", "E", "S"}
+
+    def _prepare_observations(self, observations: List[str]) -> List[str]:
+        """按配置将原始观测转换为训练时一致的观测表示。"""
+        if not self.use_dict_feature:
+            return observations
+        if all(self._is_augmented_observation(o) for o in observations):
+            return observations
+        lexicon = self.dict_lexicon or set()
+        return augment_observations_with_bmm(
+            observations,
+            lexicon=lexicon,
+            joiner=self.feature_joiner,
+            max_word_len=self.bmm_max_word_len,
+        )
 
     def decode(self, observations: List[str]) -> List[str]:
         """
@@ -82,6 +116,8 @@ class HMM:
         """
         if not observations:
             return []
+
+        observations = self._prepare_observations(observations)
 
         states = self.states
         vocab_set = set(self.vocab)
@@ -101,7 +137,7 @@ class HMM:
                 return p, ""
             if tag[1] in {"_", "-", "/"}:
                 return p, tag[2:]
-            return p, tag[1:]
+            return p, tag[1:] 
 
         def valid_transition(prev_tag: str, curr_tag: str) -> bool:
             pp, pt = split_bmes(prev_tag)
@@ -183,8 +219,6 @@ class HMM:
         Returns:
             分词结果列表
         """
-        from pynlptool.data_utils import norm_seq
-        
         if not text:
             return []
         
@@ -214,6 +248,10 @@ def train(
     min_freq: int = 3,
     unk_token: str = "<UNK>",
     tag_penalty: float = -20.0,
+    use_dict_feature: bool = False,
+    dict_lexicon: Optional[Set[str]] = None,
+    feature_joiner: str = "|",
+    bmm_max_word_len: int = 6,
 ) -> HMM:
     """
     训练 HMM 模型。
@@ -224,6 +262,10 @@ def train(
         min_freq: 词频阈值，低于此值视为未知词
         unk_token: 未知词标记
         tag_penalty: 标签惩罚系数
+        use_dict_feature: 是否启用 BMM 词典观测增强
+        dict_lexicon: 可选外部词典（不传则由训练集自动构建）
+        feature_joiner: 观测拼接符号
+        bmm_max_word_len: BMM 最大词长
 
     Returns:
         训练好的 HMM 模型
@@ -245,6 +287,25 @@ def train(
         num_sentences += 1
         start_counts[tags[0]] += 1
         state_counts.update(tags)
+        vocab.update(obs)
+
+    if use_dict_feature:
+        lexicon = set(dict_lexicon) if dict_lexicon is not None else build_dictionary_from_sequences(sequences_list)
+        transformed: List[Tuple[List[str], List[str]]] = []
+        for obs, tags in sequences_list:
+            transformed_obs = augment_observations_with_bmm(
+                obs,
+                lexicon=lexicon,
+                joiner=feature_joiner,
+                max_word_len=bmm_max_word_len,
+            )
+            transformed.append((transformed_obs, tags))
+        sequences_list = transformed
+    else:
+        lexicon = set()
+
+    vocab = Counter()
+    for obs, _ in sequences_list:
         vocab.update(obs)
 
     vocab_set = {w for w, c in vocab.items() if c >= min_freq}
@@ -306,4 +367,8 @@ def train(
         tag_dict=dict(tag_dict),
         tag_penalty=tag_penalty,
         log_end=log_end,
+        use_dict_feature=use_dict_feature,
+        dict_lexicon=lexicon,
+        feature_joiner=feature_joiner,
+        bmm_max_word_len=bmm_max_word_len,
     )

@@ -4,20 +4,24 @@ pynlptool - 基于隐马尔可夫模型的中文分词和序列标注库
 A Hidden Markov Model (HMM) based Chinese word segmentation and sequence labeling library.
 """
 
-import os
 from pathlib import Path
 from typing import Optional, List, Tuple
 
 from pynlptool.model import HMM, train
 from pynlptool.data_utils import (
     Sentence,
+    augment_observations_with_bmm,
+    bmm_segment,
+    bmm_tags,
+    build_dictionary_from_sequences,
     load_data,
+    load_lexicon,
     norm_char,
     norm_seq,
 )
 from pynlptool.evaluate import evaluate, report
 
-__version__ = "0.1.0"
+__version__ = "0.2.1"
 __author__ = "Luck_mx"
 __email__ = "muxinglucky@gmail.com"
 
@@ -26,8 +30,28 @@ _model: Optional[HMM] = None
 
 
 def _get_model_path() -> Path:
-    """Get the path to the bundled pretrained model."""
-    return Path(__file__).parent / "model.pkl"
+    """Get the preferred builtin model path.
+
+    Priority:
+    1. Bundled package `hmm_bmm.pkl` (new default model)
+    2. Bundled package `model.pkl` (legacy fallback)
+    3. Project-root `models/hmm_bmm.pkl` (workspace fallback)
+    4. Project-root `models/model.pkl` (workspace legacy fallback)
+    """
+    package_dir = Path(__file__).resolve().parent
+    project_root = package_dir.parents[1]
+
+    candidates = [
+        package_dir / "hmm_bmm.pkl",
+        package_dir / "model.pkl",
+        project_root / "models" / "hmm_bmm.pkl",
+        project_root / "models" / "model.pkl",
+    ]
+    for candidate in candidates:
+        if candidate.exists():
+            return candidate
+
+    return candidates[-1]
 
 
 def load_model() -> HMM:
@@ -129,6 +153,11 @@ __all__ = [
     "show",
     # 数据工具
     "Sentence",
+    "bmm_segment",
+    "bmm_tags",
+    "augment_observations_with_bmm",
+    "build_dictionary_from_sequences",
+    "load_lexicon",
     "load_data",
     "norm_char",
     "norm_seq",
