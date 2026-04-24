@@ -114,8 +114,28 @@ class HMM:
         Returns:
             预测的标签序列
         """
+        tags, _ = self.decode_with_confidence(observations)
+        return tags
+
+    def decode_with_confidence(self, observations: List[str]) -> Tuple[List[str], Dict[str, float]]:
+        """
+        Viterbi 解码并返回简单置信度特征，便于上层做动态回退。
+
+        Returns:
+            (预测标签序列, 置信度字典)
+            置信度字段：
+            - score: 最优路径总对数分数
+            - avg_score: 平均每字对数分数
+            - margin: 终止时最优与次优路径分差
+            - avg_margin: 平均每字路径分差
+        """
         if not observations:
-            return []
+            return [], {
+                "score": -math.inf,
+                "avg_score": -math.inf,
+                "margin": 0.0,
+                "avg_margin": 0.0,
+            }
 
         observations = self._prepare_observations(observations)
 
@@ -201,13 +221,25 @@ class HMM:
         end_scores: Dict[str, float] = {}
         for s in states:
             end_scores[s] = (dp[-1][s] + self.log_end.get(s, 0.0)) if valid_end(s) else -math.inf
-        last_state = max(end_scores, key=lambda k: end_scores[k])
+        ranked = sorted(end_scores.items(), key=lambda kv: kv[1], reverse=True)
+        last_state = ranked[0][0]
+        best_score = ranked[0][1]
+        second_best = ranked[1][1] if len(ranked) > 1 else -math.inf
         path = [last_state]
         for t in range(T - 1, 0, -1):
             last_state = bp[t][last_state]
             path.append(last_state)
         path.reverse()
-        return path
+        margin = best_score - second_best if second_best != -math.inf else 0.0
+        avg_score = best_score / max(T, 1)
+        avg_margin = margin / max(T, 1)
+        confidence: Dict[str, float] = {
+            "score": best_score,
+            "avg_score": avg_score,
+            "margin": margin,
+            "avg_margin": avg_margin,
+        }
+        return path, confidence
     
     def cut(self, text: str) -> List[str]:
         """

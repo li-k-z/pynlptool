@@ -1,6 +1,6 @@
 # pynlptool
 
-当前版本: `0.2.1`
+当前版本: `0.2.2`
 
 [![PyPI version](https://badge.fury.io/py/pynlptool.svg)](https://badge.fury.io/py/pynlptool)
 [![Python Version](https://img.shields.io/pypi/pyversions/pynlptool.svg)](https://pypi.org/project/pynlptool/)
@@ -14,6 +14,7 @@ A lightweight HMM-based library for Chinese word segmentation and sequence label
 
 - 纯Python实现，安装简单
 - 内置BMM增强预训练模型，开箱即用
+- 支持基线模型与BMM-HMM动态回退推理
 - 支持BMES混合标注与自定义训练
 - 支持模型保存/加载与离线评估
 - 提供Python API与CLI两种使用方式
@@ -112,6 +113,22 @@ metrics = evaluate(test_sequences, predictions)
 print(report(metrics))
 ```
 
+### 5) 动态回退推理
+
+```python
+from pathlib import Path
+
+from pynlptool import HMM, infer_with_fallback
+
+baseline = HMM.load(str(Path("src/pynlptool/model.pkl")))
+bmm = HMM.load(str(Path("src/pynlptool/hmm_bmm.pkl")))
+
+result = infer_with_fallback(baseline, bmm, "2000年1月1日，俄罗斯前总统叶利钦辞职。")
+print(result.chosen_model)
+print(" / ".join(result.words))
+print(" | ".join(f"{word}/{pos}" for word, pos in result.words_pos))
+```
+
 ## CLI
 
 安装后可直接使用：
@@ -131,11 +148,14 @@ python -m pynlptool.cli "南京市长江大桥"
 ```bash
 pynlptool "南京市长江大桥" -o words
 pynlptool "南京市长江大桥" -o tags
+pynlptool "南京市长江大桥" -o pos
 pynlptool "南京市长江大桥" -m your_model.pkl
 ```
 
-- `-o, --output-format`: `tags` / `words` / `both`
+- `-o, --output-format`: `tags` / `words` / `pos` / `both`
 - `-m, --model`: 指定模型路径
+- 默认不指定 `-m` 时，CLI 会在内置基线模型与 BMM-HMM 之间执行动态回退
+- `--disagreement-threshold`、`--min-avg-margin`、`--max-avg-score-drop`: 回退阈值
 - `--version`: 查看版本
 
 ## 数据格式

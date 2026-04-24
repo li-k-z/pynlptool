@@ -20,8 +20,19 @@ from pynlptool.data_utils import (
     norm_seq,
 )
 from pynlptool.evaluate import evaluate, report
+from pynlptool.fallback import (
+    FallbackResult,
+    disagreement_ratio,
+    infer_with_fallback,
+    should_fallback,
+    tag_pos,
+    tag_prefix,
+    tags_to_words,
+    tags_to_words_pos,
+    word_spans,
+)
 
-__version__ = "0.2.1"
+__version__ = "0.2.2"
 __author__ = "Luck_mx"
 __email__ = "muxinglucky@gmail.com"
 
@@ -164,6 +175,16 @@ __all__ = [
     # 评估
     "evaluate",
     "report",
+    # 回退推理
+    "FallbackResult",
+    "disagreement_ratio",
+    "infer_with_fallback",
+    "should_fallback",
+    "tag_pos",
+    "tag_prefix",
+    "tags_to_words",
+    "tags_to_words_pos",
+    "word_spans",
     # 元信息
     "__version__",
 ]
