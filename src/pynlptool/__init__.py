@@ -32,12 +32,13 @@ from pynlptool.fallback import (
     word_spans,
 )
 
-__version__ = "0.2.2"
+__version__ = "0.2.3"
 __author__ = "Luck_mx"
 __email__ = "muxinglucky@gmail.com"
 
 # Cache for pretrained model
 _model: Optional[HMM] = None
+_baseline_model: Optional[HMM] = None
 
 
 def _get_model_path() -> Path:
@@ -65,6 +66,22 @@ def _get_model_path() -> Path:
     return candidates[-1]
 
 
+def _get_baseline_model_path() -> Path:
+    """Get the preferred builtin baseline model path."""
+    package_dir = Path(__file__).resolve().parent
+    project_root = package_dir.parents[1]
+
+    candidates = [
+        package_dir / "model.pkl",
+        project_root / "models" / "model.pkl",
+    ]
+    for candidate in candidates:
+        if candidate.exists():
+            return candidate
+
+    return candidates[0]
+
+
 def load_model() -> HMM:
     """
     加载内置的预训练模型。
@@ -89,6 +106,25 @@ def load_model() -> HMM:
             )
         _model = HMM.load(str(model_path))
     return _model
+
+
+def load_baseline_model() -> HMM:
+    """
+    加载内置的基线模型（model.pkl）。
+
+    Returns:
+        HMM: 基线模型实例
+    """
+    global _baseline_model
+    if _baseline_model is None:
+        model_path = _get_baseline_model_path()
+        if not model_path.exists():
+            raise FileNotFoundError(
+                f"基线模型文件未找到: {model_path}. "
+                "请重新安装包或手动提供 model.pkl。"
+            )
+        _baseline_model = HMM.load(str(model_path))
+    return _baseline_model
 
 
 def cut(text: str) -> List[str]:
@@ -159,6 +195,7 @@ __all__ = [
     "train",
     # 便捷函数
     "load_model",
+    "load_baseline_model",
     "cut",
     "tag",
     "show",

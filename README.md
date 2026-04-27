@@ -1,6 +1,6 @@
 # pynlptool
 
-当前版本: `0.2.2`
+当前版本: `0.2.3`
 
 [![PyPI version](https://badge.fury.io/py/pynlptool.svg)](https://badge.fury.io/py/pynlptool)
 [![Python Version](https://img.shields.io/pypi/pyversions/pynlptool.svg)](https://pypi.org/project/pynlptool/)
@@ -116,14 +116,12 @@ print(report(metrics))
 ### 5) 动态回退推理
 
 ```python
-from pathlib import Path
+from pynlptool import infer_with_fallback, load_baseline_model, load_model
 
-from pynlptool import HMM, infer_with_fallback
+baseline = load_baseline_model()
+bmm = load_model()
 
-baseline = HMM.load(str(Path("src/pynlptool/model.pkl")))
-bmm = HMM.load(str(Path("src/pynlptool/hmm_bmm.pkl")))
-
-result = infer_with_fallback(baseline, bmm, "2000年1月1日，俄罗斯前总统叶利钦辞职。")
+result = infer_with_fallback(baseline, bmm, "南京市长江大桥")
 print(result.chosen_model)
 print(" / ".join(result.words))
 print(" | ".join(f"{word}/{pos}" for word, pos in result.words_pos))
