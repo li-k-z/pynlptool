@@ -32,7 +32,7 @@ from pynlptool.fallback import (
     word_spans,
 )
 
-__version__ = "0.3.0"
+__version__ = "0.3.1"
 __author__ = "Luck_mx"
 __email__ = "muxinglucky@gmail.com"
 
