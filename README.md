@@ -1,6 +1,6 @@
 # pynlptool
 
-当前版本: `0.2.3`
+当前版本: `0.3.0`
 
 [![PyPI version](https://badge.fury.io/py/pynlptool.svg)](https://badge.fury.io/py/pynlptool)
 [![Python Version](https://img.shields.io/pypi/pyversions/pynlptool.svg)](https://pypi.org/project/pynlptool/)
