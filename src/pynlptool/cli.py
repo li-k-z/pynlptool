@@ -10,7 +10,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 
-from pynlptool import HMM, infer_with_fallback, tag_pos, tags_to_words_pos
+from pynlptool import HMM, infer_with_fallback, tags_to_words_pos
+from pynlptool import _render_prediction_output
 from pynlptool.data_utils import norm_seq
 
 
@@ -92,9 +93,9 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "-o", "--output-format",
-        choices=["tags", "words", "pos", "both"],
+        choices=["tags", "cut", "words", "pos", "both"],
         default="both",
-        help="输出格式: tags, words, pos, 或 both（默认: both）",
+        help="输出格式: tags, cut, pos, 或 both（默认: both）",
     )
     parser.add_argument(
         "--disagreement-threshold",
@@ -125,6 +126,8 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     """CLI主入口。"""
     args = parse_args()
+    if args.output_format == "words":
+        args.output_format = "cut"
     
     # 获取输入文本
     if args.text:
@@ -216,21 +219,7 @@ def main() -> None:
         words = model.cut(text)
         words_pos = tags_to_words_pos(chars, tags)
     
-    if args.output_format == "tags":
-        for char, tag in zip(chars, tags):
-            print(f"{char}\t{tag}")
-    elif args.output_format == "words":
-        print(" ".join(words))
-    elif args.output_format == "pos":
-        print(" | ".join(f"{word}/{pos}" for word, pos in words_pos))
-    else:  # both
-        print("=== 标签序列 ===")
-        for char, tag in zip(chars, tags):
-            print(f"{char}\t{tag}")
-        print("\n=== 分词结果 ===")
-        print(" ".join(words))
-        print("\n=== 词性结果 ===")
-        print(" | ".join(f"{word}/{pos}" for word, pos in words_pos))
+    print(_render_prediction_output(chars, tags, words, words_pos, args.output_format))
 
 
 if __name__ == "__main__":

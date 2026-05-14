@@ -27,18 +27,37 @@ pip install pynlptool
 
 ## 快速开始
 
+先用 Python 直接上手，再用 CLI 做同样的事情。下面两种方式对应的是同一套输出逻辑，用户可以按自己的使用场景选择其一。
+
+### 1) Python 直接调用
+
 ```python
-from pynlptool import cut, tag, show
+from pynlptool import cut, tags, pos, both
 
-# 待处理文本
-text = "南京市长江大桥是长江上第一座由中国自主设计、自行建造的双层式铁路、公路两用桥梁，是新中国的标志性工程与时代精神象征。"
+text = "南京长江大桥是长江上第一座由中国自主设计、自行建造的双层式铁路、公路两用桥梁，是新中国的标志性工程与时代精神象征，被誉为 “争气桥”。"
 
-# cut: 返回分词结果，类型为 List[str]
+print(tags(text))
 print(cut(text))
-# tag: 返回逐字标注结果，类型为 List[Tuple[str, str]]
-print(tag(text))
-# show: 返回格式化后的可读文本，适合直接打印
-print(show(text))
+print(pos(text))
+print(both(text))
+```
+
+`cut(text)` 返回分词列表，最适合直接在 Python 里继续处理；`tags(text)`、`pos(text)`、`both(text)` 与 CLI 的 `-o tags / pos / both` 一一对应，返回格式也完全一致。`load_model()` 适合需要直接操作模型对象的场景。
+
+### 2) CLI 直接调用
+
+```bash
+pynlptool "南京市长江大桥"
+pynlptool "南京市长江大桥" -o tags
+pynlptool "南京市长江大桥" -o cut
+pynlptool "南京市长江大桥" -o pos
+pynlptool "南京市长江大桥" -o both
+```
+
+如果系统里没有 `pynlptool` 命令，也可以用：
+
+```bash
+python -m pynlptool.cli "南京市长江大桥" -o both
 ```
 
 ## Python API 快速示例
@@ -46,12 +65,9 @@ print(show(text))
 ### 1) 使用内置模型（推荐）
 
 ```python
-from pynlptool import cut, load_model
+from pynlptool import load_model
 
-# 方式1：直接用便捷函数，内部会自动加载并缓存内置模型
-print(cut("南京市长江大桥"))
-
-# 方式2：显式加载模型后重复调用，适合批量推理场景
+# 显式加载模型后重复调用，适合批量推理场景
 model = load_model()
 print(model.cut("南京市长江大桥"))
 # decode 输入为“观测序列”（这里是字符列表），输出为标签序列
@@ -144,13 +160,13 @@ python -m pynlptool.cli "南京市长江大桥"
 常用参数：
 
 ```bash
-pynlptool "南京市长江大桥" -o words
+pynlptool "南京市长江大桥" -o cut
 pynlptool "南京市长江大桥" -o tags
 pynlptool "南京市长江大桥" -o pos
 pynlptool "南京市长江大桥" -m your_model.pkl
 ```
 
-- `-o, --output-format`: `tags` / `words` / `pos` / `both`
+- `-o, --output-format`: `tags` / `cut` / `pos` / `both`
 - `-m, --model`: 指定模型路径
 - 默认不指定 `-m` 时，CLI 会在内置基线模型与 BMM-HMM 之间执行动态回退
 - `--disagreement-threshold`、`--min-avg-margin`、`--max-avg-score-drop`: 回退阈值
@@ -173,15 +189,16 @@ pynlptool "南京市长江大桥" -m your_model.pkl
 ## 核心 API
 
 - `load_model()`: 加载内置 BMM 增强预训练模型（带缓存）
-- `cut(text)`: 直接分词
-- `tag(text)`: 返回 `(字符, 标签)` 列表
-- `show(text)`: 返回可读性更好的标签文本
+- `cut(text)`: 返回分词列表
+- `tags(text)`: 返回与 CLI `-o tags` 一致的输出结果
+- `pos(text)`: 返回与 CLI `-o pos` 一致的输出结果
+- `both(text)`: 返回与 CLI `-o both` 一致的输出结果
 - `train(...)`: 训练 HMM，支持 BMM 观测增强参数
 - `evaluate(...)`: 计算准确率与宏平均指标
 
 ## 说明与边界行为
 
-- `cut("")` 返回空列表
+- `model.cut("")` 返回空列表
 - 数字/英文会先归一化再解码，输出仍保留原字符
 - 支持中英数混合输入
 
